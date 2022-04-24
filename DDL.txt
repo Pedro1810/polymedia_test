@@ -1,0 +1,40 @@
+CREATE DATABASE sales;
+CREATE SCHEMA aristov AUTHORIZATION postgres;
+
+CREATE TABLE aristov.departments (
+	filial_id int2 NULL,
+	department_id int2 NULL,
+	dep_chif_id int2 NULL
+);
+
+CREATE TABLE aristov.goods (
+	id varchar(50) NULL,
+	"name" varchar(50) NULL,
+	price float4 NULL,
+	sdate date NULL,
+	edate date NULL,
+	is_actual int2 NULL
+);
+
+CREATE TABLE aristov.sales (
+	sale_date date NULL,
+	salesman_id int2 NULL,
+	item_id varchar NULL,
+	quantity int2 NULL,
+	final_price float4 NULL
+);
+
+CREATE TABLE aristov.sellers (
+	id int2 NULL,
+	fio varchar(50) NULL,
+	department_id int2 NULL
+);
+
+CREATE TABLE aristov.services (
+	id varchar(50) NULL,
+	"name" varchar(50) NULL,
+	price float4 NULL,
+	sdate date NULL,
+	edate date NULL,
+	is_actual int2 NULL
+);

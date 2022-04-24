@@ -1,0 +1,218 @@
+-- View
+-- Таблица сделок с актуальными ценами на товар
+DROP VIEW if exists sales_with_actual_prices;
+create view sales_with_actual_prices as
+	select s.*, 
+	items.price, 
+	items.name,
+	s.final_price / s.quantity - items.price as price_overcharge, 
+	round(cast((s.final_price / s.quantity - items.price) / items.price * 100 as numeric), 2) as price_overcharge_percent 
+	from sales s
+	left join (
+		select * from goods
+		union
+		select * from services) items
+	on s.item_id = items.id
+	and (s.sale_date between items.sdate and items.edate);
+select * from sales_with_actual_prices;
+	
+-- View
+-- Агрегация по периодам конкретных продавцов (недели)
+DROP VIEW if exists dates_sellers_agr_weeks;
+create view dates_sellers_agr_weeks as 
+	select t1.period_type, 
+	t1.start_date, 
+	t1.end_date, 
+	t1.salesman_id, 
+	t1.sales_count,
+	t1.sales_sum,
+	t1.max_overcharge, 
+	t1.max_overcharge_percent, 
+	t2.name as max_overcharge_item 
+	from (
+		select 'week' as period_type, 
+		interval_week_dates.start_date_week as start_date,
+		date(interval_week_dates.start_date_week + interval '6 day') as end_date, 
+		salesman_id,
+		count(interval_week_dates.final_price) as sales_count, 
+		sum(interval_week_dates.final_price) as sales_sum,
+		max(price_overcharge) as max_overcharge,
+		max(price_overcharge_percent) as max_overcharge_percent
+		from (
+			select *, 
+			date(date_trunc('week', sale_date)) as start_date_week
+			from sales_with_actual_prices) as interval_week_dates
+			group by salesman_id, start_date_week) t1
+	join sales_with_actual_prices t2
+	on t1.max_overcharge = t2.price_overcharge
+	and (t2.sale_date between t1.start_date and t1.end_date);
+select * from dates_sellers_agr_weeks;
+	
+-- View
+-- Агрегация по всем периодам (недели)
+DROP VIEW if exists dates_agr_weeks;
+create view dates_agr_weeks as 
+	select t1.period_type, 
+	t1.start_date, 
+	t1.end_date, 
+	t1.sales_count, 
+	t1.sales_sum, 
+	t1.max_overcharge, 
+	t1.max_overcharge_percent, 
+	t2.name as max_overcharge_item 
+	from (
+		select 'week' as period_type, 
+		interval_week_dates.start_date_week as start_date,
+		date(interval_week_dates.start_date_week + interval '6 day') as end_date, 
+		count(interval_week_dates.final_price) as sales_count, 
+		sum(interval_week_dates.final_price) as sales_sum,
+		max(price_overcharge) as max_overcharge,
+		max(price_overcharge_percent) as max_overcharge_percent
+		from (
+			select *, 
+			date(date_trunc('week', sale_date)) as start_date_week
+			from sales_with_actual_prices) as interval_week_dates
+			group by start_date_week) t1
+	join sales_with_actual_prices t2
+	on t1.max_overcharge = t2.price_overcharge
+	and (t2.sale_date between t1.start_date and t1.end_date);
+select * from dates_agr_weeks;
+		
+-- View
+-- Агрегация по периодам конкретных продавцов (месяцы)
+DROP VIEW if exists dates_sellers_agr_months;
+create view dates_sellers_agr_months as 
+	select t1.period_type, 
+	t1.start_date, 
+	t1.end_date, 
+	t1.salesman_id, 
+	t1.sales_count, 
+	t1.sales_sum, 
+	t1.max_overcharge, 
+	t1.max_overcharge_percent, 
+	t2.name as max_overcharge_item 
+	from (
+		select 'month' as period_type, 
+		interval_week_dates.start_date_week as start_date,
+		date(interval_week_dates.start_date_week + interval '1 month' - interval '1 day') as end_date, 
+		salesman_id,
+		count(interval_week_dates.final_price) as sales_count, 
+		sum(interval_week_dates.final_price) as sales_sum,
+		max(price_overcharge) as max_overcharge,
+		max(price_overcharge_percent) as max_overcharge_percent
+		from (
+			select *, 
+			date(date_trunc('month', sale_date)) as start_date_week
+			from sales_with_actual_prices) as interval_week_dates
+			group by salesman_id, start_date_week) t1
+	join sales_with_actual_prices t2
+	on t1.max_overcharge = t2.price_overcharge
+	and (t2.sale_date between t1.start_date and t1.end_date);
+select * from dates_sellers_agr_months;
+	
+-- View
+-- Агрегация по всем периодам (месяцы)
+DROP VIEW if exists dates_agr_months;
+create view dates_agr_months as 
+	select t1.period_type, 
+	t1.start_date, 
+	t1.end_date, 
+	t1.sales_count, 
+	t1.sales_sum, 
+	t1.max_overcharge, 
+	t1.max_overcharge_percent, 
+	t2.name as max_overcharge_item 
+	from (
+		select 'month' as period_type, 
+		interval_week_dates.start_date_week as start_date,
+		date(interval_week_dates.start_date_week + interval '1 month' - interval '1 day') as end_date, 
+		count(interval_week_dates.final_price) as sales_count, 
+		sum(interval_week_dates.final_price) as sales_sum,
+		max(price_overcharge) as max_overcharge,
+		max(price_overcharge_percent) as max_overcharge_percent
+		from (
+			select *, 
+			date(date_trunc('month', sale_date)) as start_date_week
+			from sales_with_actual_prices) as interval_week_dates
+			group by start_date_week) t1
+	join sales_with_actual_prices t2
+	on t1.max_overcharge = t2.price_overcharge
+	and (t2.sale_date between t1.start_date and t1.end_date);
+select * from dates_agr_months;
+	
+-- View
+-- Вариант с агрегацией по всем периодам всех продавцов
+DROP VIEW if exists intervals_table_v1;
+create view intervals_table_v1 as
+	select t1.period_type, 
+	t1.start_date, 
+	t1.end_date, 
+	t1.salesman_id, 
+	t1.sales_count, 
+	t1.sales_sum, 
+	t2.max_overcharge_item, 
+	t2.max_overcharge_percent 
+	from dates_sellers_agr_weeks t1
+	join dates_agr_weeks t2
+	on t1.start_date = t2.start_date
+	union
+	select t1.period_type, 
+	t1.start_date, 
+	t1.end_date, 
+	t1.salesman_id, 
+	t1.sales_count, 
+	t1.sales_sum, 
+	t2.max_overcharge_item, 
+	t2.max_overcharge_percent 
+	from dates_sellers_agr_months t1
+	join dates_agr_months t2
+	on t1.start_date = t2.start_date;
+select * from intervals_table_v1;
+
+-- View
+-- Вариант с агрегацией по всем периодам отдельных продавцов
+DROP VIEW if exists intervals_table_v2;
+create view intervals_table_v2 as
+select period_type, 
+	start_date, 
+	end_date, 
+	salesman_id, 
+	sales_count, 
+	sales_sum, 
+	max_overcharge_item, 
+	max_overcharge_percent 
+	from dates_sellers_agr_weeks
+	union
+	select period_type, 
+	start_date, 
+	end_date, 
+	salesman_id, 
+	sales_count, 
+	sales_sum, 
+	max_overcharge_item, 
+	max_overcharge_percent 
+	from dates_sellers_agr_months;
+select * from intervals_table_v2;
+
+-- Result
+select tt.period_type, 
+tt.start_date, 
+tt.end_date, 
+tt.salesman_fio, 
+st.fio as chif_fio, 
+tt.sales_count, 
+tt.sales_sum, 
+tt.max_overcharge_item, 
+tt.max_overcharge_percent from (
+	select * from (
+		select intervals_table_v2.*, 
+		sellers_table.fio as salesman_fio, 
+		sellers_table.department_id from intervals_table_v2 
+		left join sellers sellers_table 
+		on intervals_table_v2.salesman_id = sellers_table.id) t1
+	left join departments d 
+	on d.department_id = t1.department_id) tt
+left join sellers st
+on st.id = tt.dep_chif_id
+where salesman_fio is not null
+order by tt.salesman_fio, tt.start_date;
